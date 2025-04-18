@@ -94,10 +94,6 @@ const LoginPage: React.FC = () => {
                 Sign In
               </Button>
             </div>
-            
-            <div className="text-center mt-4 text-sm text-gray-600">
-              <p>Demo credentials: username: admin, password: password</p>
-            </div>
           </form>
         </div>
       </div>
