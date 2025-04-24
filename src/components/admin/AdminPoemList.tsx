@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Eye, EyeOff, Edit, Trash, Star } from 'lucide-react';
+import { Eye, EyeOff, Edit, Trash, Star, MessageSquare } from 'lucide-react';
 import { Poem } from '../../types';
+import { usePoems } from '../../context/PoemContext';
 
 interface AdminPoemListProps {
   poems: Poem[];
@@ -16,7 +17,15 @@ const AdminPoemList: React.FC<AdminPoemListProps> = ({
   onToggleFeatured,
   onDelete,
 }) => {
+  const [expandedPoemId, setExpandedPoemId] = useState<string | null>(null);
+  const { deleteComment } = usePoems();
   const featuredCount = poems.filter(poem => poem.isFeatured).length;
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (window.confirm('Are you sure you want to delete this comment?')) {
+      await deleteComment(commentId);
+    }
+  };
 
   if (poems.length === 0) {
     return (
@@ -47,6 +56,9 @@ const AdminPoemList: React.FC<AdminPoemListProps> = ({
               Featured
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Comments
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Date
             </th>
             <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -64,88 +76,124 @@ const AdminPoemList: React.FC<AdminPoemListProps> = ({
             });
             
             return (
-              <tr key={poem.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="h-10 w-10 flex-shrink-0">
-                      <img className="h-10 w-10 rounded-full object-cover" src={poem.coverImage} alt="" />
+              <React.Fragment key={poem.id}>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="h-10 w-10 flex-shrink-0">
+                        <img className="h-10 w-10 rounded-full object-cover" src={poem.coverImage} alt="" />
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">{poem.title}</div>
+                        {poem.subtitle && (
+                          <div className="text-sm text-gray-500">{poem.subtitle}</div>
+                        )}
+                      </div>
                     </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900">{poem.title}</div>
-                      {poem.subtitle && (
-                        <div className="text-sm text-gray-500">{poem.subtitle}</div>
-                      )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                      ${poem.language === 'english' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+                      {poem.language === 'english' ? 'English' : 'ಕನ್ನಡ'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                      ${poem.isListed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                      {poem.isListed ? 'Published' : 'Unlisted'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                      ${poem.isFeatured ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                      {poem.isFeatured ? 'Featured' : 'Not Featured'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <button
+                      onClick={() => setExpandedPoemId(expandedPoemId === poem.id ? null : poem.id)}
+                      className="flex items-center text-gray-500 hover:text-blue-900"
+                    >
+                      <MessageSquare size={16} className="mr-1" />
+                      <span>{poem.comments.length}</span>
+                    </button>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {formattedDate}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex items-center justify-end space-x-2">
+                      <button
+                        onClick={() => onToggleVisibility(poem.id)}
+                        className={`p-1 rounded-full ${
+                          poem.isListed 
+                            ? 'text-green-500 hover:bg-green-50'
+                            : 'text-gray-400 hover:bg-gray-50'
+                        }`}
+                        title={poem.isListed ? 'Unlist poem' : 'Publish poem'}
+                      >
+                        {poem.isListed ? <Eye size={18} /> : <EyeOff size={18} />}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (!poem.isFeatured && featuredCount >= 5) {
+                            alert('Cannot feature more than 5 poems. Please unfeature another poem first.');
+                            return;
+                          }
+                          onToggleFeatured(poem.id);
+                        }}
+                        className={`p-1 rounded-full ${
+                          poem.isFeatured 
+                            ? 'text-yellow-500 hover:bg-yellow-50'
+                            : 'text-gray-400 hover:bg-gray-50'
+                        }`}
+                        title={poem.isFeatured ? 'Remove from featured' : 'Mark as featured'}
+                      >
+                        <Star size={18} />
+                      </button>
+                      <Link
+                        to={`/admin/edit/${poem.id}`}
+                        className="p-1 rounded-full text-blue-500 hover:bg-blue-50"
+                        title="Edit poem"
+                      >
+                        <Edit size={18} />
+                      </Link>
+                      <button
+                        onClick={() => onDelete(poem.id)}
+                        className="p-1 rounded-full text-red-500 hover:bg-red-50"
+                        title="Delete poem"
+                      >
+                        <Trash size={18} />
+                      </button>
                     </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                    ${poem.language === 'english' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
-                    {poem.language === 'english' ? 'English' : 'ಕನ್ನಡ'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                    ${poem.isListed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                    {poem.isListed ? 'Published' : 'Unlisted'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                    ${poem.isFeatured ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
-                    {poem.isFeatured ? 'Featured' : 'Not Featured'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formattedDate}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div className="flex items-center justify-end space-x-2">
-                    <button
-                      onClick={() => onToggleVisibility(poem.id)}
-                      className={`p-1 rounded-full ${
-                        poem.isListed 
-                          ? 'text-green-500 hover:bg-green-50'
-                          : 'text-gray-400 hover:bg-gray-50'
-                      }`}
-                      title={poem.isListed ? 'Unlist poem' : 'Publish poem'}
-                    >
-                      {poem.isListed ? <Eye size={18} /> : <EyeOff size={18} />}
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (!poem.isFeatured && featuredCount >= 5) {
-                          alert('Cannot feature more than 5 poems. Please unfeature another poem first.');
-                          return;
-                        }
-                        onToggleFeatured(poem.id);
-                      }}
-                      className={`p-1 rounded-full ${
-                        poem.isFeatured 
-                          ? 'text-yellow-500 hover:bg-yellow-50'
-                          : 'text-gray-400 hover:bg-gray-50'
-                      }`}
-                      title={poem.isFeatured ? 'Remove from featured' : 'Mark as featured'}
-                    >
-                      <Star size={18} />
-                    </button>
-                    <Link
-                      to={`/admin/edit/${poem.id}`}
-                      className="p-1 rounded-full text-blue-500 hover:bg-blue-50"
-                      title="Edit poem"
-                    >
-                      <Edit size={18} />
-                    </Link>
-                    <button
-                      onClick={() => onDelete(poem.id)}
-                      className="p-1 rounded-full text-red-500 hover:bg-red-50"
-                      title="Delete poem"
-                    >
-                      <Trash size={18} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
+                  </td>
+                </tr>
+                {expandedPoemId === poem.id && poem.comments.length > 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-4 bg-gray-50">
+                      <div className="space-y-4">
+                        {poem.comments.map(comment => (
+                          <div key={comment.id} className="flex items-start justify-between bg-white p-4 rounded-lg shadow-sm">
+                            <div>
+                              <p className="text-gray-800">{comment.content}</p>
+                              <p className="text-sm text-gray-500 mt-1">
+                                {new Date(comment.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteComment(comment.id)}
+                              className="text-red-500 hover:text-red-700"
+                              title="Delete comment"
+                            >
+                              <Trash size={16} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             );
           })}
         </tbody>

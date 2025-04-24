@@ -1,12 +1,23 @@
 import React from 'react';
 import { Poem } from '../types';
+import PoemInteractions from './PoemInteractions';
 
 interface PoemContentProps {
   poem: Poem;
 }
 
 const PoemContent: React.FC<PoemContentProps> = ({ poem }) => {
-  const { title, subtitle, content, coverImage, language } = poem;
+  const { 
+    title, 
+    subtitle, 
+    content, 
+    coverImage, 
+    language,
+    id,
+    likes,
+    hasLiked,
+    comments
+  } = poem;
   
   // Process the poem content to maintain line breaks
   const formattedContent = content.split('\n').map((line, index) => (
@@ -52,6 +63,13 @@ const PoemContent: React.FC<PoemContentProps> = ({ poem }) => {
       <div className={`prose max-w-none ${languageStyles} px-4 md:px-0`}>
         {formattedContent}
       </div>
+
+      <PoemInteractions
+        poemId={id}
+        likes={likes}
+        hasLiked={hasLiked}
+        comments={comments}
+      />
     </article>
   );
 };

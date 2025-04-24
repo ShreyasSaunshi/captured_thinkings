@@ -9,6 +9,9 @@ interface PoemContextType {
   activeLanguage: Language | 'all';
   togglePoemVisibility: (id: string) => Promise<void>;
   togglePoemFeatured: (id: string) => Promise<void>;
+  toggleLike: (id: string) => Promise<void>;
+  addComment: (id: string, content: string) => Promise<void>;
+  deleteComment: (commentId: string) => Promise<void>;
   addPoem: (poem: Omit<Poem, 'id' | 'createdAt' | 'updatedAt' | 'userId'>) => Promise<void>;
   updatePoem: (id: string, poem: Partial<Poem>) => Promise<void>;
   deletePoem: (id: string) => Promise<void>;
@@ -23,6 +26,9 @@ const PoemContext = createContext<PoemContextType>({
   activeLanguage: 'all',
   togglePoemVisibility: async () => {},
   togglePoemFeatured: async () => {},
+  toggleLike: async () => {},
+  addComment: async () => {},
+  deleteComment: async () => {},
   addPoem: async () => {},
   updatePoem: async () => {},
   deletePoem: async () => {},
@@ -47,10 +53,26 @@ export const PoemProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw new Error('Unable to connect to database after multiple attempts');
       }
 
+      const { data: session } = await supabase.auth.getSession();
+      const userId = session?.session?.user?.id;
+
       const fetchPoems = async () => {
         let query = supabase
           .from('poems')
-          .select('*')
+          .select(`
+            *,
+            poem_likes (
+              id,
+              user_id
+            ),
+            poem_comments (
+              id,
+              content,
+              user_id,
+              created_at,
+              updated_at
+            )
+          `)
           .order('created_at', { ascending: false });
 
         if (listedOnly) {
@@ -78,7 +100,16 @@ export const PoemProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isListed: poem.is_listed,
         isFeatured: poem.is_featured,
         createdAt: poem.created_at,
-        updatedAt: poem.updated_at
+        updatedAt: poem.updated_at,
+        likes: poem.poem_likes?.length || 0,
+        hasLiked: userId ? poem.poem_likes?.some(like => like.user_id === userId) || false : false,
+        comments: poem.poem_comments?.map(comment => ({
+          id: comment.id,
+          content: comment.content,
+          userId: comment.user_id,
+          createdAt: comment.created_at,
+          updatedAt: comment.updated_at
+        })) || []
       }));
 
       setPoems(processedPoems);
@@ -92,7 +123,125 @@ export const PoemProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     refreshPoems();
+
+    // Subscribe to realtime changes
+    const poemLikesSubscription = supabase
+      .channel('poem_likes_changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'poem_likes' 
+      }, () => {
+        refreshPoems();
+      })
+      .subscribe();
+
+    const poemCommentsSubscription = supabase
+      .channel('poem_comments_changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'poem_comments' 
+      }, () => {
+        refreshPoems();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(poemLikesSubscription);
+      supabase.removeChannel(poemCommentsSubscription);
+    };
   }, []);
+
+  const toggleLike = async (id: string) => {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.user) {
+        throw new Error('Please sign in to like poems');
+      }
+
+      const userId = session.session.user.id;
+      const poem = poems.find(p => p.id === id);
+      if (!poem) return;
+
+      if (poem.hasLiked) {
+        const result = await supabase
+          .from('poem_likes')
+          .delete()
+          .eq('poem_id', id)
+          .eq('user_id', userId);
+
+        logSupabaseOperation('remove like', result);
+        if (result.error) throw result.error;
+      } else {
+        const result = await supabase
+          .from('poem_likes')
+          .insert({
+            poem_id: id,
+            user_id: userId
+          });
+
+        logSupabaseOperation('add like', result);
+        if (result.error) throw result.error;
+      }
+
+      await refreshPoems();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update like';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  };
+
+  const addComment = async (id: string, content: string) => {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.user) {
+        throw new Error('Please sign in to comment');
+      }
+
+      const result = await supabase
+        .from('poem_comments')
+        .insert({
+          poem_id: id,
+          user_id: session.session.user.id,
+          content: content
+        });
+
+      logSupabaseOperation('add comment', result);
+      if (result.error) throw result.error;
+
+      await refreshPoems();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add comment';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  };
+
+  const deleteComment = async (commentId: string) => {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.user) {
+        setError('Please sign in to manage comments');
+        return;
+      }
+
+      const result = await supabase
+        .from('poem_comments')
+        .delete()
+        .eq('id', commentId);
+
+      logSupabaseOperation('delete comment', result);
+      if (result.error) throw result.error;
+
+      await refreshPoems(false);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete comment';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  };
 
   const togglePoemVisibility = async (id: string) => {
     try {
@@ -255,6 +404,9 @@ export const PoemProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         activeLanguage,
         togglePoemVisibility,
         togglePoemFeatured,
+        toggleLike,
+        addComment,
+        deleteComment,
         addPoem,
         updatePoem,
         deletePoem,

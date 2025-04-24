@@ -11,6 +11,17 @@ export interface Poem {
   isFeatured: boolean;
   createdAt: string;
   updatedAt: string;
+  likes: number;
+  hasLiked: boolean;
+  comments: Comment[];
+}
+
+export interface Comment {
+  id: string;
+  content: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface User {
