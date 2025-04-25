@@ -4,7 +4,7 @@ import Input from '../ui/Input';
 import TextArea from '../ui/TextArea';
 import Select from '../ui/Select';
 import Toggle from '../ui/Toggle';
-import { Poem, Language } from '../../types';
+import { Poem } from '../../types';
 
 interface PoemFormProps {
   initialData?: Partial<Poem>;
@@ -24,6 +24,7 @@ const PoemForm: React.FC<PoemFormProps> = ({
     coverImage: initialData.coverImage || '',
     language: initialData.language || 'english',
     isListed: initialData.isListed !== undefined ? initialData.isListed : true,
+    isFeatured: initialData.isFeatured !== undefined ? initialData.isFeatured : false, 
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});

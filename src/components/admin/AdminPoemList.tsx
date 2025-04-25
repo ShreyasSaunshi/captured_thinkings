@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { Eye, EyeOff, Edit, Trash, Star, MessageSquare } from 'lucide-react';
+import { Eye, EyeOff, Edit, Trash, Star } from 'lucide-react';
 import { Poem } from '../../types';
-import { usePoems } from '../../context/PoemContext';
 
 interface AdminPoemListProps {
   poems: Poem[];
@@ -17,15 +16,7 @@ const AdminPoemList: React.FC<AdminPoemListProps> = ({
   onToggleFeatured,
   onDelete,
 }) => {
-  const [expandedPoemId, setExpandedPoemId] = useState<string | null>(null);
-  const { deleteComment } = usePoems();
   const featuredCount = poems.filter(poem => poem.isFeatured).length;
-
-  const handleDeleteComment = async (commentId: string) => {
-    if (window.confirm('Are you sure you want to delete this comment?')) {
-      await deleteComment(commentId);
-    }
-  };
 
   if (poems.length === 0) {
     return (
@@ -56,9 +47,6 @@ const AdminPoemList: React.FC<AdminPoemListProps> = ({
               Featured
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Comments
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Date
             </th>
             <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -76,8 +64,7 @@ const AdminPoemList: React.FC<AdminPoemListProps> = ({
             });
             
             return (
-              <React.Fragment key={poem.id}>
-                <tr className="hover:bg-gray-50">
+                <tr key={poem.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="h-10 w-10 flex-shrink-0">
@@ -108,15 +95,6 @@ const AdminPoemList: React.FC<AdminPoemListProps> = ({
                       ${poem.isFeatured ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
                       {poem.isFeatured ? 'Featured' : 'Not Featured'}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => setExpandedPoemId(expandedPoemId === poem.id ? null : poem.id)}
-                      className="flex items-center text-gray-500 hover:text-blue-900"
-                    >
-                      <MessageSquare size={16} className="mr-1" />
-                      <span>{poem.comments.length}</span>
-                    </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formattedDate}
@@ -164,36 +142,11 @@ const AdminPoemList: React.FC<AdminPoemListProps> = ({
                         title="Delete poem"
                       >
                         <Trash size={18} />
+  
                       </button>
                     </div>
                   </td>
                 </tr>
-                {expandedPoemId === poem.id && poem.comments.length > 0 && (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-4 bg-gray-50">
-                      <div className="space-y-4">
-                        {poem.comments.map(comment => (
-                          <div key={comment.id} className="flex items-start justify-between bg-white p-4 rounded-lg shadow-sm">
-                            <div>
-                              <p className="text-gray-800">{comment.content}</p>
-                              <p className="text-sm text-gray-500 mt-1">
-                                {new Date(comment.createdAt).toLocaleDateString()}
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => handleDeleteComment(comment.id)}
-                              className="text-red-500 hover:text-red-700"
-                              title="Delete comment"
-                            >
-                              <Trash size={16} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
             );
           })}
         </tbody>

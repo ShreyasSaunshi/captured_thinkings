@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { PoemProvider } from './context/PoemContext';
-import { ThemeProvider } from './context/ThemeProvider';
 
 // Layouts
 import PublicLayout from './layouts/PublicLayout';
@@ -23,7 +22,6 @@ import ManagePoemsPage from './pages/admin/ManagePoemsPage';
 function App() {
   return (
     <BrowserRouter>
-      <ThemeProvider>
         <AuthProvider>
           <PoemProvider>
             <Routes>
@@ -51,7 +49,6 @@ function App() {
             </Routes>
           </PoemProvider>
         </AuthProvider>
-      </ThemeProvider>
     </BrowserRouter>
   );
 }

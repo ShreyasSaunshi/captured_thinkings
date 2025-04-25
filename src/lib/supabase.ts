@@ -40,7 +40,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
 export const checkSupabaseConnection = async () => {
   try {
     // Instead of checking the URL directly, try to make a simple query
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('poems')
       .select('count')
       .limit(1)
@@ -52,9 +52,7 @@ export const checkSupabaseConnection = async () => {
         message: error.message,
         code: error.code,
         details: error.details,
-        hint: error.hint,
-        status: error.status
-      });
+        hint: error.hint,});
       return false;
     }
 
