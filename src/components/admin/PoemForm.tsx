@@ -13,7 +13,7 @@ interface PoemFormProps {
   isLoading?: boolean;
 }
 
-const DEFAULT_IMAGE = 'https://via.placeholder.com/600x400?text=Nature+Poem+Cover';
+const DEFAULT_IMAGE = 'https://images.pexels.com/photos/3621344/pexels-photo-3621344.jpeg';
 
 const PoemForm: React.FC<PoemFormProps> = ({
   initialData = {},
