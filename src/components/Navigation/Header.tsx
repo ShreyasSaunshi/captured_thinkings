@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, BookOpen, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -20,6 +20,21 @@ const Header: React.FC = () => {
     handleScroll(); // Run initially
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+  useEffect(() => {
+  const handleClickOutside = (event: MouseEvent) => {
+    if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      setIsMenuOpen(false);
+    }
+   };
+
+  if (isMenuOpen) {
+    document.addEventListener('mousedown', handleClickOutside);
+  }
+
+  return () => {
+    document.removeEventListener('mousedown', handleClickOutside);
+  };
+}, [isMenuOpen]);
 
   const navClasses = `
     fixed top-0 left-0 right-0 z-50 transition-colors duration-300
@@ -40,6 +55,7 @@ const Header: React.FC = () => {
     await logout();
     navigate('/');
   };
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   return (
     <header className={navClasses}>
@@ -97,7 +113,10 @@ const Header: React.FC = () => {
 
         {/* Mobile menu */}
         {isMenuOpen && (
-          <div className="md:hidden bg-gray-900 mt-2 rounded-lg shadow-lg p-4 absolute left-4 right-4">
+          <div 
+            ref={dropdownRef}
+            className="md:hidden bg-gray-900 mt-2 rounded-lg shadow-lg p-4 absolute left-4 right-4"
+          >
             {isAdmin ? (
               <div className="flex flex-col space-y-2">
                 <Link to="/admin" className="text-gray-300 hover:text-white py-2" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
