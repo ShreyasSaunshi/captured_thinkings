@@ -5,6 +5,7 @@ import TextArea from '../ui/TextArea';
 import Select from '../ui/Select';
 import Toggle from '../ui/Toggle';
 import { Poem } from '../../types';
+import { supabase } from '../../lib/supabaseClient'; // make sure your Supabase client is here
 
 interface PoemFormProps {
   initialData?: Partial<Poem>;
@@ -24,18 +25,17 @@ const PoemForm: React.FC<PoemFormProps> = ({
     coverImage: initialData.coverImage || '',
     language: initialData.language || 'english',
     isListed: initialData.isListed !== undefined ? initialData.isListed : true,
-    isFeatured: initialData.isFeatured !== undefined ? initialData.isFeatured : false, 
+    isFeatured: initialData.isFeatured !== undefined ? initialData.isFeatured : false,
   });
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+  const [uploading, setUploading] = useState(false);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    
-    // Clear error when field is modified
     if (errors[name]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -44,45 +44,80 @@ const PoemForm: React.FC<PoemFormProps> = ({
       });
     }
   };
-  
+
   const handleToggleChange = (checked: boolean) => {
     setFormData(prev => ({ ...prev, isListed: checked }));
   };
-  
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExt}`;
+    const filePath = `covers/${fileName}`;
+
+    const { data, error } = await supabase.storage
+      .from('poem-covers')
+      .upload(filePath, file);
+
+    if (error) {
+      console.error('Upload failed:', error);
+      setErrors(prev => ({ ...prev, coverImage: 'Upload failed. Try again.' }));
+      setUploading(false);
+      return;
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from('poem-covers')
+      .getPublicUrl(filePath);
+
+    setFormData(prev => ({
+      ...prev,
+      coverImage: publicUrlData?.publicUrl || '',
+    }));
+
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors.coverImage;
+      return newErrors;
+    });
+
+    setUploading(false);
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-    
-    if (!formData.title.trim()) {
-      newErrors.title = 'Title is required';
-    }
-    
-    if (!formData.content.trim()) {
-      newErrors.content = 'Poem content is required';
-    }
-    
+
+    if (!formData.title.trim()) newErrors.title = 'Title is required';
+    if (!formData.content.trim()) newErrors.content = 'Poem content is required';
+
     if (!formData.coverImage.trim()) {
-      newErrors.coverImage = 'Cover image URL is required';
-    } else if (!formData.coverImage.match(/^https?:\/\/.+\.(jpg|jpeg|png|webp)$/i)) {
-      newErrors.coverImage = 'Please enter a valid image URL (jpg, jpeg, png, or webp)';
+      newErrors.coverImage = 'Cover image is required';
+    } else if (
+      !formData.coverImage.startsWith('http://') &&
+      !formData.coverImage.startsWith('https://')
+    ) {
+      newErrors.coverImage = 'Cover image must be a valid URL';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (validateForm()) {
       onSubmit(formData);
     }
   };
-  
+
   const languageOptions = [
     { value: 'english', label: 'English' },
     { value: 'kannada', label: 'Kannada (ಕನ್ನಡ)' },
   ];
-  
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <Input
@@ -95,7 +130,7 @@ const PoemForm: React.FC<PoemFormProps> = ({
         error={errors.title}
         required
       />
-      
+
       <Input
         label="Subtitle (optional)"
         name="subtitle"
@@ -104,7 +139,7 @@ const PoemForm: React.FC<PoemFormProps> = ({
         placeholder="Enter a subtitle or brief description"
         fullWidth
       />
-      
+
       <Input
         label="Cover Image URL"
         name="coverImage"
@@ -114,25 +149,42 @@ const PoemForm: React.FC<PoemFormProps> = ({
         placeholder="https://example.com/image.jpg"
         fullWidth
         error={errors.coverImage}
-        required
       />
-      
+
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">Or Upload Image</label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleFileUpload}
+          disabled={uploading}
+          className="block w-full text-sm text-gray-500
+                     file:mr-4 file:py-2 file:px-4
+                     file:rounded-md file:border-0
+                     file:text-sm file:font-semibold
+                     file:bg-indigo-50 file:text-indigo-700
+                     hover:file:bg-indigo-100"
+        />
+        {uploading && <p className="text-sm text-blue-500">Uploading...</p>}
+      </div>
+
       {formData.coverImage && (
         <div className="mt-2 mb-4">
           <p className="text-sm text-gray-600 mb-2">Cover Image Preview:</p>
           <div className="h-40 w-full overflow-hidden rounded-lg shadow-md">
-            <img 
-              src={formData.coverImage} 
+            <img
+              src={formData.coverImage}
               alt="Cover preview"
-              className="w-full h-full object-cover" 
+              className="w-full h-full object-cover"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x250?text=Invalid+Image+URL';
+                (e.target as HTMLImageElement).src =
+                  'https://via.placeholder.com/400x250?text=Invalid+Image+URL';
               }}
             />
           </div>
         </div>
       )}
-      
+
       <Select
         label="Language"
         name="language"
@@ -142,7 +194,7 @@ const PoemForm: React.FC<PoemFormProps> = ({
         fullWidth
         required
       />
-      
+
       <TextArea
         label="Poem Content"
         name="content"
@@ -155,7 +207,7 @@ const PoemForm: React.FC<PoemFormProps> = ({
         required
         className={formData.language === 'kannada' ? 'font-kannada' : ''}
       />
-      
+
       <div className="flex items-center justify-between pt-2">
         <Toggle
           label="Publish on website"
@@ -163,7 +215,7 @@ const PoemForm: React.FC<PoemFormProps> = ({
           onChange={handleToggleChange}
           id="isListed"
         />
-        
+
         <div className="flex space-x-4">
           <Button
             type="submit"
