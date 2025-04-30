@@ -81,13 +81,7 @@ const PoemForm: React.FC<PoemFormProps> = ({
     }));
 
     setErrors(prev => {
-      const newErrors = { ...prev };
-      delete newErrors.coverImage;
-      return newErrors;
-    });
-
-    setUploading(false);
-  };
+      const newErrors = { ...prev 
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -99,24 +93,36 @@ const PoemForm: React.FC<PoemFormProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (validateForm()) {
-      const coverImage = formData.coverImage.trim()
-        ? formData.coverImage
-        : DEFAULT_IMAGE;
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-      onSubmit({ ...formData, coverImage });
-    }
-  };
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Date.now()}.${fileExt}`;
+  const filePath = `${fileName}`; // Store in root of poem-covers
 
-  const languageOptions = [
-    { value: 'english', label: 'English' },
-    { value: 'kannada', label: 'Kannada (ಕನ್ನಡ)' },
-  ];
+  const { error: uploadError } = await supabase.storage
+    .from('poem-covers')
+    .upload(filePath, file);
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+  if (uploadError) {
+    console.error('Upload error:', uploadError);
+    toast.error('Image upload failed');
+    return;
+  }
+
+  const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/poem-covers/${filePath}`;
+
+  console.log('Image Public URL:', publicUrl);
+
+  setFormData((prev) => ({
+    ...prev,
+    coverImage: publicUrl,
+  }));
+
+  toast.success('Image uploaded successfully');
+};
+      
       <Input
         label="Title"
         name="title"
