@@ -5,13 +5,15 @@ import TextArea from '../ui/TextArea';
 import Select from '../ui/Select';
 import Toggle from '../ui/Toggle';
 import { Poem } from '../../types';
-import { supabase } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase';
 
 interface PoemFormProps {
   initialData?: Partial<Poem>;
   onSubmit: (data: Omit<Poem, 'id' | 'createdAt' | 'updatedAt'>) => void;
   isLoading?: boolean;
 }
+
+const DEFAULT_IMAGE = 'https://via.placeholder.com/600x400?text=Nature+Poem+Cover';
 
 const PoemForm: React.FC<PoemFormProps> = ({
   initialData = {},
@@ -58,7 +60,7 @@ const PoemForm: React.FC<PoemFormProps> = ({
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `covers/${fileName}`;
 
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('poem-covers')
       .upload(filePath, file);
 
@@ -93,15 +95,6 @@ const PoemForm: React.FC<PoemFormProps> = ({
     if (!formData.title.trim()) newErrors.title = 'Title is required';
     if (!formData.content.trim()) newErrors.content = 'Poem content is required';
 
-    if (!formData.coverImage.trim()) {
-      newErrors.coverImage = 'Cover image is required';
-    } else if (
-      !formData.coverImage.startsWith('http://') &&
-      !formData.coverImage.startsWith('https://')
-    ) {
-      newErrors.coverImage = 'Cover image must be a valid URL';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -109,7 +102,11 @@ const PoemForm: React.FC<PoemFormProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
-      onSubmit(formData);
+      const coverImage = formData.coverImage.trim()
+        ? formData.coverImage
+        : DEFAULT_IMAGE;
+
+      onSubmit({ ...formData, coverImage });
     }
   };
 
@@ -141,14 +138,13 @@ const PoemForm: React.FC<PoemFormProps> = ({
       />
 
       <Input
-        label="Cover Image URL"
+        label="Cover Image URL (optional)"
         name="coverImage"
         type="url"
         value={formData.coverImage}
         onChange={handleChange}
         placeholder="https://example.com/image.jpg"
         fullWidth
-        error={errors.coverImage}
       />
 
       <div className="space-y-2">
@@ -159,31 +155,28 @@ const PoemForm: React.FC<PoemFormProps> = ({
           onChange={handleFileUpload}
           disabled={uploading}
           className="block w-full text-sm text-gray-500
-                     file:mr-4 file:py-2 file:px-4
-                     file:rounded-md file:border-0
-                     file:text-sm file:font-semibold
-                     file:bg-indigo-50 file:text-indigo-700
-                     hover:file:bg-indigo-100"
+            file:mr-4 file:py-2 file:px-4
+            file:rounded-md file:border-0
+            file:text-sm file:font-semibold
+            file:bg-indigo-50 file:text-indigo-700
+            hover:file:bg-indigo-100"
         />
         {uploading && <p className="text-sm text-blue-500">Uploading...</p>}
       </div>
 
-      {formData.coverImage && (
-        <div className="mt-2 mb-4">
-          <p className="text-sm text-gray-600 mb-2">Cover Image Preview:</p>
-          <div className="h-40 w-full overflow-hidden rounded-lg shadow-md">
-            <img
-              src={formData.coverImage}
-              alt="Cover preview"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src =
-                  'https://via.placeholder.com/400x250?text=Invalid+Image+URL';
-              }}
-            />
-          </div>
+      <div className="mt-2 mb-4">
+        <p className="text-sm text-gray-600 mb-2">Cover Image Preview:</p>
+        <div className="h-40 w-full overflow-hidden rounded-lg shadow-md">
+          <img
+            src={formData.coverImage || DEFAULT_IMAGE}
+            alt="Cover preview"
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = DEFAULT_IMAGE;
+            }}
+          />
         </div>
-      )}
+      </div>
 
       <Select
         label="Language"
