@@ -5,7 +5,7 @@ import TextArea from '../ui/TextArea';
 import Select from '../ui/Select';
 import Toggle from '../ui/Toggle';
 import { Poem } from '../../types';
-import { supabase } from '../../lib/supabaseClient'; // make sure your Supabase client is here
+import { supabase } from '../../lib/supabase'
 
 interface PoemFormProps {
   initialData?: Partial<Poem>;
