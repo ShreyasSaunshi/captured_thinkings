@@ -15,6 +15,11 @@ interface PoemFormProps {
 
 const DEFAULT_IMAGE = 'https://images.pexels.com/photos/3621344/pexels-photo-3621344.jpeg';
 
+const languageOptions = [
+  { label: 'English', value: 'english' },
+  { label: 'Kannada', value: 'kannada' },
+];
+
 const PoemForm: React.FC<PoemFormProps> = ({
   initialData = {},
   onSubmit,
@@ -56,6 +61,7 @@ const PoemForm: React.FC<PoemFormProps> = ({
     if (!file) return;
 
     setUploading(true);
+
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `covers/${fileName}`;
@@ -80,12 +86,11 @@ const PoemForm: React.FC<PoemFormProps> = ({
       coverImage: publicUrlData?.publicUrl || '',
     }));
 
-    setErrors(prev => {
-      const newErrors = { ...prev 
+    setUploading(false);
+  };
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-
     if (!formData.title.trim()) newErrors.title = 'Title is required';
     if (!formData.content.trim()) newErrors.content = 'Poem content is required';
 
@@ -93,36 +98,16 @@ const PoemForm: React.FC<PoemFormProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
 
-  const fileExt = file.name.split('.').pop();
-  const fileName = `${Date.now()}.${fileExt}`;
-  const filePath = `${fileName}`; // Store in root of poem-covers
+    const { title, subtitle, content, coverImage, language, isListed, isFeatured } = formData;
+    onSubmit({ title, subtitle, content, coverImage, language, isListed, isFeatured });
+  };
 
-  const { error: uploadError } = await supabase.storage
-    .from('poem-covers')
-    .upload(filePath, file);
-
-  if (uploadError) {
-    console.error('Upload error:', uploadError);
-    toast.error('Image upload failed');
-    return;
-  }
-
-  const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/poem-covers/${filePath}`;
-
-  console.log('Image Public URL:', publicUrl);
-
-  setFormData((prev) => ({
-    ...prev,
-    coverImage: publicUrl,
-  }));
-
-  toast.success('Image uploaded successfully');
-};
-      
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
       <Input
         label="Title"
         name="title"
@@ -215,16 +200,14 @@ const PoemForm: React.FC<PoemFormProps> = ({
           id="isListed"
         />
 
-        <div className="flex space-x-4">
-          <Button
-            type="submit"
-            variant="primary"
-            isLoading={isLoading}
-            disabled={isLoading}
-          >
-            {initialData.id ? 'Update Poem' : 'Create Poem'}
-          </Button>
-        </div>
+        <Button
+          type="submit"
+          variant="primary"
+          isLoading={isLoading}
+          disabled={isLoading}
+        >
+          {initialData.id ? 'Update Poem' : 'Create Poem'}
+        </Button>
       </div>
     </form>
   );
